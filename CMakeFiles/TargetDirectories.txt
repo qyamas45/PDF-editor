@@ -1,0 +1,2 @@
+/Users/alyamas/Documents/GitHub/PDF-editor/CMakeFiles/edit_cache.dir
+/Users/alyamas/Documents/GitHub/PDF-editor/CMakeFiles/rebuild_cache.dir

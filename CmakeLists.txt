@@ -1,0 +1,36 @@
+cmake_minimum_required(VERSION 3.16)
+project(PDFEditor VERSION 1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Enable Qt auto-processing
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
+# Find Qt6 with required modules
+find_package(Qt6 REQUIRED COMPONENTS
+    Core
+    Gui
+    Widgets
+    # Pdf        # Uncomment after installing Qt PDF via Qt Maintenance Tool
+    # PdfWidgets # Uncomment after installing Qt PDF via Qt Maintenance Tool
+)
+
+# Source files
+set(SOURCES
+    src/main.cpp
+)
+
+# Create executable
+add_executable(PDFEditor ${SOURCES})
+
+# Link Qt6 libraries
+target_link_libraries(PDFEditor PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    # Qt6::Pdf        # Uncomment after installing Qt PDF via Qt Maintenance Tool
+    # Qt6::PdfWidgets # Uncomment after installing Qt PDF via Qt Maintenance Tool
+)

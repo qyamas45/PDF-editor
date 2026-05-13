@@ -28,6 +28,8 @@ find_package(Qt6 REQUIRED COMPONENTS
 set(SOURCES
     src/main.cpp
     src/ui/MainWindow.cpp
+    src/ui/AnnotationToolBar.cpp
+    src/ui/AnnotationOverlay.cpp
 )
 
 # Create executable

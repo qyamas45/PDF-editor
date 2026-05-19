@@ -99,6 +99,23 @@ void MainWindow::openFile()
         return;
     }
 
+    // Stop watching the previous file if any
+    if (!m_currentPath.isEmpty() && m_fileWatcher)
+        m_fileWatcher->removePath(m_currentPath);
+
+    m_currentPath = path;
+    // Watch the opened file for external changes to auto-reload
+    if (!m_fileWatcher) {
+        // Note: QFileSystemWatcher can have issues on 
+        // some platforms if the file is replaced
+        // (e.g. by some PDF editors that save 
+        // by writing to a temp file and
+        m_fileWatcher = new QFileSystemWatcher(this);
+        connect(m_fileWatcher, &QFileSystemWatcher::fileChanged,
+                this,          &MainWindow::onSourceFileChanged);
+    }
+    m_fileWatcher->addPath(m_currentPath);
+
     setWindowTitle("PDF Editor — " + QFileInfo(path).fileName());
 
     m_saveAction->setEnabled(true);
@@ -106,7 +123,21 @@ void MainWindow::openFile()
     m_overlay->show();
     m_overlay->resize(m_pdfView->viewport()->size());
 }
+void MainWindow::onSourceFileChanged(const QString &path)
+{
+    if (QFileInfo::exists(path))
+        return; // modified but still present — no action needed
 
+    QMessageBox::warning(
+        this,
+        "Source File Deleted",
+        "The original file \"" + QFileInfo(path).fileName() + "\" has been deleted or moved.\n\n"
+        "Your current work is still open. Use File > Save as PDF to keep your annotations."
+    );
+
+    // Stop watching — file is gone, further signals would be noise
+    m_fileWatcher->removePath(path);
+}
 void MainWindow::savePdf()
 {
     if (m_document->pageCount() == 0) return;
@@ -126,7 +157,7 @@ void MainWindow::savePdf()
 
     QVector<qreal> screenScaleV(pageCount), pageTopY(pageCount);
     qreal docY = margins.top();
-    for (int i = 0; i < pageCount; ++i) {
+    for (int i{}; i < pageCount; ++i) {
         const QSizeF sz  = m_document->pagePointSize(i);
         screenScaleV[i]  = viewWidth / sz.width();
         pageTopY[i]      = docY;
@@ -137,7 +168,7 @@ void MainWindow::savePdf()
     writer.setCreator("PDF Editor");
     QPainter pdfPainter;
 
-    for (int i = 0; i < pageCount; ++i) {
+    for (int i{}; i < pageCount; ++i) {
         const QSizeF pageSizePt = m_document->pagePointSize(i);
         const qreal  ss         = screenScaleV[i];
         const qreal  pageHPx    = pageSizePt.height() * ss;

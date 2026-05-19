@@ -17,6 +17,7 @@ public:
     void setTools(const QVector<ToolItem> &tools);
     void setActiveTool(ToolType type);
     void hoverToolTip(ToolType type);
+    
 
     static QIcon makeSelectIcon();
     static QIcon makeDrawIcon();
@@ -32,4 +33,5 @@ private:
 
     void onButtonClicked(ToolType type);
     void updateButtonStyles();
+    bool eventFilter(QObject *obj, QEvent *event) override;
 };

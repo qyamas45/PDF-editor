@@ -100,7 +100,13 @@ void AnnotationOverlay::paintEvent(QPaintEvent *)
         }
     }
 }
-
+ 
+// The following code is for handling mouse interactions 
+// with the annotation overlay, including drawing strokes, 
+// placing text annotations, and selecting/moving existing annotations. 
+// All positions are managed in document space (accounting for scrolling) to ensure annotations stay correctly aligned with the PDF content.
+// Mouse events are processed based on the currently active tool, 
+// and the overlay updates its display accordingly.
 void AnnotationOverlay::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() != Qt::LeftButton)

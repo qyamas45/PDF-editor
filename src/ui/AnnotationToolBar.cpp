@@ -4,7 +4,8 @@
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QPixmap>
-
+#include <QCursor>
+#include <QToolTip>
 AnnotationToolBar::AnnotationToolBar(QWidget *parent)
     : QWidget(parent)
     , m_layout(new QVBoxLayout(this))
@@ -15,6 +16,18 @@ AnnotationToolBar::AnnotationToolBar(QWidget *parent)
 
     setFixedWidth(52);
     setStyleSheet("background-color: #F5F5F5; border-right: 1px solid #CCCCCC;");
+}
+bool AnnotationToolBar::eventFilter(QObject *obj, QEvent *event)
+{
+ 
+    if (event->type() == QEvent::HoverEnter) {
+        QToolButton *btn = qobject_cast<QToolButton*>(obj);
+        if (btn) {
+            ToolType type = btn->property("toolType").value<ToolType>();
+            hoverToolTip(type);
+        }
+    }
+    return QWidget::eventFilter(obj, event);
 }
 
 void AnnotationToolBar::setTools(const QVector<ToolItem> &tools)
@@ -35,10 +48,10 @@ void AnnotationToolBar::setTools(const QVector<ToolItem> &tools)
         //with instructions on how to use the tool 
         //(e.g. "Click and drag to draw annotation")
         if (item.type == ToolType::Draw)
-        {
-            connect(btn, &QToolButton::focusInEvent, this, [this, type = item.type]() {
-                hoverToolTip(type );
-            });
+        {   
+          
+            btn->setAttribute(Qt::WA_Hover);
+            btn->installEventFilter(this);
         }
         m_layout->addWidget(btn);
         m_buttons.append(btn);
@@ -53,7 +66,10 @@ void AnnotationToolBar::setActiveTool(ToolType type)
 }
 void AnnotationToolBar::hoverToolTip(ToolType type )
 {
-    std::cout << "TEST";
+    if (type == ToolType::Draw) {
+         
+        //QToolTip::showText(QCursor::pos(), "Click and drag to draw annotation");
+    }
     
 }
 void AnnotationToolBar::onButtonClicked(ToolType type)
@@ -108,7 +124,7 @@ QIcon AnnotationToolBar::makeSelectIcon()
            << QPointF(13, 16)  // 6: inner-right notch
            << QPointF(19, 14); // 7: outer-right → closes back to tip (hypotenuse)
 
-    p.setPen(QPen(QColor("#2C3E50"), 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setPen(QPen(QColor("#3c5d7e"), 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setBrush(QColor(255, 255, 255, 220));
     p.drawPolygon(cursor);
 

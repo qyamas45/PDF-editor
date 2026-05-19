@@ -2,9 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-
+#include <QString>
+#include <QFileSystemWatcher>
 class QPdfDocument;
 class QPdfView;
+class QFileSystemWatcher;
 class AnnotationToolBar;
 class AnnotationOverlay;
 
@@ -18,13 +20,16 @@ public:
 private slots:
     void openFile();
     void savePdf();
+    void onSourceFileChanged(const QString &path);
 
 private:
-    QPdfDocument      *m_document;
-    QPdfView          *m_pdfView;
-    AnnotationToolBar *m_toolBar    = nullptr;
-    AnnotationOverlay *m_overlay    = nullptr;
-    QAction           *m_saveAction = nullptr;
+    QPdfDocument       *m_document;
+    QPdfView           *m_pdfView;
+    AnnotationToolBar  *m_toolBar     = nullptr;
+    AnnotationOverlay  *m_overlay     = nullptr;
+    QAction            *m_saveAction  = nullptr;
+    QFileSystemWatcher *m_fileWatcher = nullptr;
+    QString             m_currentPath;
 
     void setupUI();
     void setupMenuBar();

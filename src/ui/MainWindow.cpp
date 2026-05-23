@@ -1,7 +1,7 @@
 #include "MainWindow.h"
 #include "AnnotationToolBar.h"
 #include "AnnotationOverlay.h"
-
+#include "AnnotationPropertyBar.h"
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -23,7 +23,6 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupMenuBar();
 }
-
 void MainWindow::setupUI()
 {
     setWindowTitle("PDF Editor");
@@ -40,6 +39,8 @@ void MainWindow::setupUI()
 
     // Toolbar with annotation tools; initially hidden until a PDF is loaded
     m_toolBar = new AnnotationToolBar(central);
+
+
     // Define the available tools and their icons
     QVector<ToolItem> tools = {
         { ToolType::Select, "Select", AnnotationToolBar::makeSelectIcon() },
@@ -50,6 +51,25 @@ void MainWindow::setupUI()
     m_toolBar->setTools(tools);
     m_toolBar->hide();
 
+    //Add propertyBar
+    m_propBar = new AnnotationPropertyBar(m_pdfView->viewport());
+    m_propBar->hide(); // Initially hidden until a PDF is loaded
+    connect(m_toolBar, &AnnotationToolBar::toolSelected,
+            this,  [this](ToolType type) {
+                
+        if (type == ToolType::None) {
+            m_propBar->hide();
+            return;
+        }
+        
+        QPoint pos(0, m_toolBar->buttonY(type));
+        //qDebug() << "propBar move to:" << pos;   // add this
+        m_propBar->move(pos);
+        m_propBar->raise();
+        m_propBar->show();
+        //qDebug() << "propBar visible:" << m_propBar->isVisible() << "geom:" << m_propBar->geometry();
+        
+    });
     // Add toolbar and PDF view to the main window layout
     hbox->addWidget(m_toolBar);
     hbox->addWidget(m_pdfView, 1);

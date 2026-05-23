@@ -17,7 +17,7 @@ public:
     void setTools(const QVector<ToolItem> &tools);
     void setActiveTool(ToolType type);
     void hoverToolTip(ToolType type);
-    
+    int buttonY(ToolType type) const;
 
     static QIcon makeSelectIcon();
     static QIcon makeDrawIcon();

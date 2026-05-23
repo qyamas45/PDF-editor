@@ -9,7 +9,7 @@ class QPdfView;
 class QFileSystemWatcher;
 class AnnotationToolBar;
 class AnnotationOverlay;
-
+class AnnotationPropertyBar;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -23,13 +23,14 @@ private slots:
     void onSourceFileChanged(const QString &path);
 
 private:
-    QPdfDocument       *m_document;
-    QPdfView           *m_pdfView;
-    AnnotationToolBar  *m_toolBar     = nullptr;
-    AnnotationOverlay  *m_overlay     = nullptr;
-    QAction            *m_saveAction  = nullptr;
-    QFileSystemWatcher *m_fileWatcher = nullptr;
-    QString             m_currentPath;
+    QPdfDocument            *m_document;
+    QPdfView                *m_pdfView;
+    AnnotationToolBar       *m_toolBar     = nullptr;
+    AnnotationPropertyBar   *m_propBar     = nullptr;
+    AnnotationOverlay       *m_overlay     = nullptr;
+    QAction                 *m_saveAction  = nullptr;
+    QFileSystemWatcher      *m_fileWatcher = nullptr;
+    QString                  m_currentPath;
 
     void setupUI();
     void setupMenuBar();

@@ -64,11 +64,11 @@ void AnnotationToolBar::setActiveTool(ToolType type)
     m_activeTool = type;
     updateButtonStyles();
 }
-void AnnotationToolBar::hoverToolTip(ToolType type )
+void AnnotationToolBar::hoverToolTip(ToolType type)
 {
     if (type == ToolType::Draw) {
-         
-        //QToolTip::showText(QCursor::pos(), "Click and drag to draw annotation");
+
+        QToolTip::showText(QCursor::pos(), "Click and drag to draw annotation"); 
     }
     
 }
@@ -79,7 +79,13 @@ void AnnotationToolBar::onButtonClicked(ToolType type)
     updateButtonStyles();
     emit toolSelected(m_activeTool);
 }
-
+int AnnotationToolBar::buttonY(ToolType type) const
+{
+    for (QToolButton *btn : m_buttons)
+        if (btn->property("toolType").value<ToolType>() == type)
+            return btn->mapTo(parentWidget(), QPoint(0, 0)).y();
+    return 0;
+}
 void AnnotationToolBar::updateButtonStyles()
 {
     static const char *activeStyle =

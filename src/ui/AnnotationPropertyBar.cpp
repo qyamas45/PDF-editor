@@ -202,6 +202,17 @@ void AnnotationPropertyBar::buildTextPanel()
         });
         sizeHBox->addWidget(btn);
     }
+
+    // Add a spin box for custom font size
+    QSpinBox *sizeSpin = new QSpinBox;
+    sizeSpin->setRange(8, 72);
+    sizeSpin->setValue(8);
+    sizeSpin->setSuffix(" pt");
+    connect(sizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
+        emit fontSizeChanged(v);
+    });
+    sizeHBox->addWidget(sizeSpin);
+
     sizeHBox->addStretch();
     m_layout->addWidget(sizeRow);
 

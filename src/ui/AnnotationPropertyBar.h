@@ -1,20 +1,32 @@
 #pragma once
-#include <iostream>
-#include <QWidget>
 #include <QFrame>
-#include <QVector>
+#include <QColor>
 #include "tools/ToolItem.h"
 
-class QToolButton;
 class QVBoxLayout;
+class QLabel;
 
 class AnnotationPropertyBar : public QFrame {
     Q_OBJECT
 
 public:
     explicit AnnotationPropertyBar(QWidget *parent = nullptr);
+
 public slots:
     void setTool(ToolType type);
+
+signals:
+    void strokeColorChanged(QColor color);
+    void strokeWidthChanged(qreal width);
+    void textColorChanged(QColor color);
+    void fontSizeChanged(int size);
+    void eraserRadiusChanged(qreal radius);
+
 private:
-    QVBoxLayout    *m_layout;
+    void clearPanel();
+    void buildDrawPanel();
+    void buildTextPanel();
+    void buildErasePanel();
+    
+    QVBoxLayout *m_layout;
 };

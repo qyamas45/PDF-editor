@@ -6,6 +6,13 @@
 #include <QPixmap>
 #include <QCursor>
 #include <QToolTip>
+/*
+    File: AnnotationToolBar.cpp
+    Purpose: This file implements the AnnotationToolBar class, which provides a 
+             vertical toolbar with buttons for selecting annotation tools (Select, 
+             Draw, Text) in the PDF editor application. It handles user interactions 
+             with the toolbar buttons and emits signals when a tool is selected.
+*/
 AnnotationToolBar::AnnotationToolBar(QWidget *parent)
     : QWidget(parent)
     , m_layout(new QVBoxLayout(this))
@@ -17,6 +24,13 @@ AnnotationToolBar::AnnotationToolBar(QWidget *parent)
     setFixedWidth(52);
     setStyleSheet("background-color: #F5F5F5; border-right: 1px solid #CCCCCC;");
 }
+/*
+    Function name: eventFilter
+    Purpose: To handle events for the tool buttons in the toolbar.
+    Parameters: QObject *obj - the object that triggered the event.
+                QEvent *event - the event to be processed.
+    Returns: bool - true if the event was handled, false otherwise.
+*/
 bool AnnotationToolBar::eventFilter(QObject *obj, QEvent *event)
 {
  
@@ -29,7 +43,13 @@ bool AnnotationToolBar::eventFilter(QObject *obj, QEvent *event)
     }
     return QWidget::eventFilter(obj, event);
 }
-
+/*
+    Function name: setTools
+    Purpose: To initialize the tool buttons in the toolbar with the provided tools.
+    Parameters: const QVector<ToolItem> &tools - a list of tool items to 
+                display in the toolbar.
+    Returns: void - this function does not return a value.
+*/
 void AnnotationToolBar::setTools(const QVector<ToolItem> &tools)
 {
     for (const ToolItem &item : tools) {
@@ -47,9 +67,8 @@ void AnnotationToolBar::setTools(const QVector<ToolItem> &tools)
         //if certain buttons, then an actual tooltip 
         //with instructions on how to use the tool 
         //(e.g. "Click and drag to draw annotation")
-        if (item.type == ToolType::Draw)
-        {   
-          
+        if (item.type == ToolType::Draw || item.type == ToolType::Erase)
+        {
             btn->setAttribute(Qt::WA_Hover);
             btn->installEventFilter(this);
         }
@@ -59,19 +78,52 @@ void AnnotationToolBar::setTools(const QVector<ToolItem> &tools)
     updateButtonStyles();
 }
 
+/*
+    Function name: setActiveTool
+    Purpose: To set the currently active tool in the toolbar. This function is 
+             called when a tool button is clicked. It updates the active tool state 
+             and refreshes the button styles to reflect which tool is active.
+
+    Parameters: ToolType type - the type of the tool that should be set as 
+                active (e.g., Select, Draw, Text).
+
+    Returns: void - this function does not return a value.
+
+*/
 void AnnotationToolBar::setActiveTool(ToolType type)
 {
     m_activeTool = type;
     updateButtonStyles();
 }
+/*
+    Function name: hoverToolTip
+    Purpose: To show a tooltip with instructions when the user hovers over certain 
+             tool buttons (e.g., the Draw tool). This function is called from the 
+             event filter when a hover event is detected on a tool button.
+
+    Parameters: ToolType type - the type of the tool for which to show the tooltip.
+
+    Returns: void - this function does not return a value.
+*/
 void AnnotationToolBar::hoverToolTip(ToolType type)
 {
     if (type == ToolType::Draw) {
-
-        QToolTip::showText(QCursor::pos(), "Click and drag to draw annotation"); 
+        QToolTip::showText(QCursor::pos(), "Click and drag to draw annotation");
+    } else if (type == ToolType::Erase) {
+        QToolTip::showText(QCursor::pos(), "Click or drag to erase strokes and text");
     }
-    
+
 }
+/*
+    Function name: onButtonClicked
+    Purpose: To handle the logic when a tool button is clicked. This function toggles 
+             the active tool state (clicking the same tool again will deselect it) and 
+             emits a signal to notify other components of the selected tool.
+
+    Parameters: ToolType type - the type of the tool that was clicked.
+
+    Returns: void - this function does not return a value.
+*/
 void AnnotationToolBar::onButtonClicked(ToolType type)
 {
     // Clicking the active tool deselects it (toggle off)
@@ -79,6 +131,20 @@ void AnnotationToolBar::onButtonClicked(ToolType type)
     updateButtonStyles();
     emit toolSelected(m_activeTool);
 }
+/*
+    Function name: buttonY and buttonX
+    Purpose: To get the Y and X coordinates of a tool button in the toolbar, 
+             relative to the parent widget (main window). This is used to position 
+             the property bar next to the active tool button.
+
+    Parameters: ToolType type - the type of the tool (Select, Draw, Text) for which 
+                we want the button coordinates.
+
+    Returns: int - the Y or X coordinate of the button in the parent widget's 
+             coordinate system. If the button is not found, it returns
+             0.
+
+*/
 int AnnotationToolBar::buttonY(ToolType type) const
 {
     for (QToolButton *btn : m_buttons)
@@ -86,6 +152,22 @@ int AnnotationToolBar::buttonY(ToolType type) const
             return btn->mapTo(parentWidget(), QPoint(0, 0)).y();
     return 0;
 }
+
+int AnnotationToolBar::buttonX(ToolType type) const
+{
+    for (QToolButton *btn : m_buttons)
+        if (btn->property("toolType").value<ToolType>() == type)
+            return btn->mapTo(parentWidget(), QPoint(0, 0)).x()-5;
+    return 0;
+}
+
+/*
+    Function name: updateButtonStyles
+    Purpose: To update the styles of all tool buttons in the toolbar based on 
+             their active state.
+    Parameters: None
+    Returns: void
+*/
 void AnnotationToolBar::updateButtonStyles()
 {
     static const char *activeStyle =
@@ -112,6 +194,12 @@ void AnnotationToolBar::updateButtonStyles()
     }
 }
 
+/*
+    Function name: makeSelectIcon
+    Purpose: To create an icon for the Select tool button.
+    Parameters: None
+    Returns: QIcon - the icon for the Select tool button.
+*/
 QIcon AnnotationToolBar::makeSelectIcon()
 {
     QPixmap pm(32, 32);
@@ -137,7 +225,12 @@ QIcon AnnotationToolBar::makeSelectIcon()
     p.end();
     return QIcon(pm);
 }
-
+/*
+    Function name: makeDrawIcon
+    Purpose: To create an icon for the Draw tool button.
+    Parameters: None
+    Returns: QIcon - the icon for the Draw tool button.
+*/
 QIcon AnnotationToolBar::makeDrawIcon()
 {
     QPixmap pm(32, 32);
@@ -163,7 +256,12 @@ QIcon AnnotationToolBar::makeDrawIcon()
     p.end();
     return QIcon(pm);
 }
-
+/*
+    Function name: makeTextIcon
+    Purpose: To create an icon for the Text tool button.
+    Parameters: None
+    Returns: QIcon - the icon for the Text tool button.
+*/
 QIcon AnnotationToolBar::makeTextIcon()
 {
     QPixmap pm(32, 32);
@@ -182,6 +280,44 @@ QIcon AnnotationToolBar::makeTextIcon()
     // Underline
     p.setPen(QPen(QColor("#2C3E50"), 2));
     p.drawLine(5, 30, 27, 30);
+
+    p.end();
+    return QIcon(pm);
+}
+/*
+    Function name: makeEraseIcon
+    Purpose: To create an icon for the Erase tool button.
+             The icon depicts a classic tilted eraser (pink body with a red band),
+             recognizable at small sizes.
+    Parameters: None
+    Returns: QIcon - the icon for the Erase tool button.
+*/
+QIcon AnnotationToolBar::makeEraseIcon()
+{
+    QPixmap pm(32, 32);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    p.save();
+    p.translate(16, 17);
+    p.rotate(-25);
+
+    // Main eraser body (light pink)
+    p.setPen(QPen(QColor("#C0392B"), 1.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setBrush(QColor(255, 182, 193));
+    p.drawRoundedRect(QRectF(-12, -6, 24, 12), 2, 2);
+
+    // Dark red band on left third
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor(231, 76, 60, 210));
+    p.drawRoundedRect(QRectF(-12, -6, 8, 12), 2, 2);
+
+    // Divider line between band and body
+    p.setPen(QPen(QColor("#C0392B"), 1.0));
+    p.drawLine(QPointF(-4, -6), QPointF(-4, 6));
+
+    p.restore();
 
     p.end();
     return QIcon(pm);

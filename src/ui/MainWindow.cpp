@@ -46,6 +46,7 @@ void MainWindow::setupUI()
         { ToolType::Select, "Select", AnnotationToolBar::makeSelectIcon() },
         { ToolType::Draw,   "Draw",   AnnotationToolBar::makeDrawIcon()   },
         { ToolType::Text,   "Text",   AnnotationToolBar::makeTextIcon()   },
+        { ToolType::Erase,  "Erase",  AnnotationToolBar::makeEraseIcon()  },
     };
     // Set the tools on the toolbar and hide it until a PDF is loaded
     m_toolBar->setTools(tools);
@@ -62,7 +63,7 @@ void MainWindow::setupUI()
             return;
         }
         
-        QPoint pos(0, m_toolBar->buttonY(type));
+        QPoint pos(m_toolBar->buttonX(type), m_toolBar->buttonY(type));
         //qDebug() << "propBar move to:" << pos;   // add this
         m_propBar->move(pos);
         m_propBar->raise();
@@ -70,6 +71,10 @@ void MainWindow::setupUI()
         //qDebug() << "propBar visible:" << m_propBar->isVisible() << "geom:" << m_propBar->geometry();
         
     });
+    // Rebuild property bar panel when tool changes
+    connect(m_toolBar, &AnnotationToolBar::toolSelected,
+            m_propBar, &AnnotationPropertyBar::setTool);
+
     // Add toolbar and PDF view to the main window layout
     hbox->addWidget(m_toolBar);
     hbox->addWidget(m_pdfView, 1);
@@ -82,6 +87,18 @@ void MainWindow::setupUI()
 
     connect(m_toolBar, &AnnotationToolBar::toolSelected,
             m_overlay,  &AnnotationOverlay::setActiveTool);
+
+    // Forward property changes from the property bar to the overlay
+    connect(m_propBar, &AnnotationPropertyBar::strokeColorChanged,
+            m_overlay, &AnnotationOverlay::setStrokeColor);
+    connect(m_propBar, &AnnotationPropertyBar::strokeWidthChanged,
+            m_overlay, &AnnotationOverlay::setStrokeWidth);
+    connect(m_propBar, &AnnotationPropertyBar::textColorChanged,
+            m_overlay, &AnnotationOverlay::setTextColor);
+    connect(m_propBar, &AnnotationPropertyBar::fontSizeChanged,
+            m_overlay, &AnnotationOverlay::setFontSize);
+    connect(m_propBar, &AnnotationPropertyBar::eraserRadiusChanged,
+            m_overlay, &AnnotationOverlay::setEraserRadius);
 }
 
 void MainWindow::setupMenuBar()
@@ -212,25 +229,24 @@ void MainWindow::savePdf()
             T.translate(-margins.left(), -pageTopY[i]);
             T.scale(exportScale / ss, exportScale / ss);
 
-            const qreal penW = qMax(1.0, 2.5 * exportScale / ss);
-            p.setPen(QPen(QColor(220, 50, 50, 200), penW,
-                          Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
             p.setBrush(Qt::NoBrush);
-            for (const QPainterPath &stroke : m_overlay->strokes()) {
-                const QRectF bb = stroke.boundingRect();
+            for (const Stroke &s : m_overlay->strokes()) {
+                const QRectF bb = s.path.boundingRect();
                 if (bb.bottom() < pageTopY[i] || bb.top() > pageTopY[i] + pageHPx)
                     continue;
-                p.drawPath(T.map(stroke));
+                const qreal penW = qMax(1.0, s.width * exportScale / ss);
+                p.setPen(QPen(s.color, penW, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+                p.drawPath(T.map(s.path));
             }
 
-            QFont font;
-            font.setFamily("Arial");
-            font.setPixelSize(qRound(16.0 * exportScale / ss));
-            p.setFont(font);
-            p.setPen(QColor(30, 30, 180, 220));
             for (const TextAnnotation &ann : m_overlay->textAnnotations()) {
                 if (ann.position.y() < pageTopY[i] || ann.position.y() > pageTopY[i] + pageHPx)
                     continue;
+                QFont font;
+                font.setFamily("Arial");
+                font.setPixelSize(qRound(ann.fontSize * exportScale / ss));
+                p.setFont(font);
+                p.setPen(ann.color);
                 p.drawText(T.map(ann.position), ann.text);
             }
         }

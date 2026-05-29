@@ -248,6 +248,15 @@ void AnnotationPropertyBar::buildErasePanel()
 
     setFixedHeight(120);
 }
+/*
+    Function name: setTool
+    Purpose: Updates the property bar based on the selected annotation tool.
+    Details: This function first clears any existing controls from the property bar. 
+             It then checks the type of tool selected (Draw, Text, Erase) and 
+             calls the corresponding function to build the appropriate control panel. 
+             If an unrecognized tool type is provided, it simply sets a default height 
+             for the property bar without adding any controls.
+*/
 void AnnotationPropertyBar::setTool(ToolType type)
 {
     clearPanel();

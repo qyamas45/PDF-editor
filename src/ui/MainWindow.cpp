@@ -23,6 +23,14 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupMenuBar();
 }
+/*
+    Function name: buildDrawPanel
+    Purpose: Configures the property bar with controls for the Draw tool.
+    Details: This function adds a label indicating the "Draw" tool, followed by 
+             controls for selecting stroke color and width. It includes color 
+             swatches for quick selection and a spin box for custom stroke width. 
+             The property bar's height is set to accommodate these controls.
+*/
 void MainWindow::setupUI()
 {
     setWindowTitle("PDF Editor");
@@ -100,7 +108,13 @@ void MainWindow::setupUI()
     connect(m_propBar, &AnnotationPropertyBar::eraserRadiusChanged,
             m_overlay, &AnnotationOverlay::setEraserRadius);
 }
-
+/*
+    Function name: setupMenuBar
+    Purpose: Sets up the main window's menu bar with file operations.
+    Details: This function creates the "File" menu and adds actions for opening,
+             saving, and quitting the application. It also sets up keyboard shortcuts
+             for these actions.
+*/
 void MainWindow::setupMenuBar()
 {
     QMenu   *fileMenu   = menuBar()->addMenu("&File");
@@ -118,7 +132,16 @@ void MainWindow::setupMenuBar()
     quitAction->setShortcut(QKeySequence::Quit);  // Ctrl+Q
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
 }
-
+/*
+    Function name: openFile
+    Purpose: Opens a PDF file and loads it into the application.
+    Details: This function displays a file dialog for selecting a 
+             PDF file. If a file is selected,
+             it attempts to load the file into the PDF document. 
+             If successful, it updates the
+             window title and enables relevant UI elements. It 
+             also sets up a file watcher to monitor the opened file for external changes, allowing the
+*/
 void MainWindow::openFile()
 {
     const QString path = QFileDialog::getOpenFileName(
@@ -160,6 +183,16 @@ void MainWindow::openFile()
     m_overlay->show();
     m_overlay->resize(m_pdfView->viewport()->size());
 }
+/*
+    Function name: onSourceFileChanged
+    Purpose: Handles the event when the source PDF file is modified or deleted 
+             externally.
+    Details: If the file is modified but still exists, 
+             no action is taken. If the file is deleted or moved, a warning message 
+             is shown to the user, and the file watcher stops monitoring the file 
+             since it's no longer present. The user is advised to save their 
+             current work to avoid losing annotations.
+*/
 void MainWindow::onSourceFileChanged(const QString &path)
 {
     if (QFileInfo::exists(path))
@@ -175,6 +208,19 @@ void MainWindow::onSourceFileChanged(const QString &path)
     // Stop watching — file is gone, further signals would be noise
     m_fileWatcher->removePath(path);
 }
+/*
+    Function name: savePdf
+    Purpose: Exports the current PDF with annotations to a new file.
+    Details: This function prompts the user to select a save location for the annotated PDF. 
+             It then renders each page of the original PDF at a specified resolution, 
+             applies the annotations from the overlay, and writes the result to a new PDF file. 
+             Finally, it shows a confirmation message with the save location.
+
+    Note: The export process involves rendering each page as an image, drawing annotations on top, 
+          and then writing these images to a new PDF. This approach ensures that all annotations 
+          are flattened into the output file, making it viewable in any standard PDF reader without 
+          requiring special annotation support.
+*/
 void MainWindow::savePdf()
 {
     if (m_document->pageCount() == 0) return;

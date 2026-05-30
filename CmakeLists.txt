@@ -29,6 +29,7 @@ set(SOURCES
     src/main.cpp
     src/ui/MainWindow.cpp
     src/ui/AnnotationToolBar.cpp
+    src/ui/AnnotationRibbonBar.cpp
     src/ui/AnnotationOverlay.cpp
     src/ui/AnnotationPropertyBar.cpp
 )

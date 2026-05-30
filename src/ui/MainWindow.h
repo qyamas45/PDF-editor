@@ -10,6 +10,7 @@ class QFileSystemWatcher;
 class AnnotationToolBar;
 class AnnotationOverlay;
 class AnnotationPropertyBar;
+class AnnotationRibbonBar;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -28,6 +29,7 @@ private:
     AnnotationToolBar       *m_toolBar     = nullptr;
     AnnotationPropertyBar   *m_propBar     = nullptr;
     AnnotationOverlay       *m_overlay     = nullptr;
+    AnnotationRibbonBar     *m_ribbonBar   = nullptr;
     QAction                 *m_saveAction  = nullptr;
     QFileSystemWatcher      *m_fileWatcher = nullptr;
     QString                  m_currentPath;

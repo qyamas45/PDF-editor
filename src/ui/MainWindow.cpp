@@ -2,9 +2,11 @@
 #include "AnnotationToolBar.h"
 #include "AnnotationOverlay.h"
 #include "AnnotationPropertyBar.h"
+#include "AnnotationRibbonBar.h"
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPainter>
@@ -71,9 +73,11 @@ void MainWindow::setupUI()
             return;
         }
         
-        QPoint pos(m_toolBar->buttonX(type), m_toolBar->buttonY(type));
-        //qDebug() << "propBar move to:" << pos;   // add this
-        m_propBar->move(pos);
+        QPoint toolbarLocal(m_toolBar->buttonX(type)+50, m_toolBar->buttonY(type));
+        QPoint viewportPos = m_pdfView->viewport()->mapFromGlobal(
+            m_toolBar->mapToGlobal(toolbarLocal));
+        //qDebug() << "propBar move to:" << viewportPos;
+        m_propBar->move(viewportPos);
         m_propBar->raise();
         m_propBar->show();
         //qDebug() << "propBar visible:" << m_propBar->isVisible() << "geom:" << m_propBar->geometry();
@@ -83,9 +87,21 @@ void MainWindow::setupUI()
     connect(m_toolBar, &AnnotationToolBar::toolSelected,
             m_propBar, &AnnotationPropertyBar::setTool);
 
-    // Add toolbar and PDF view to the main window layout
+    // Right-side column: ribbon bar on top, PDF view below
+    QWidget     *rightCol  = new QWidget(central);
+    QVBoxLayout *rightVBox = new QVBoxLayout(rightCol);
+    rightVBox->setContentsMargins(0, 0, 0, 0);
+    rightVBox->setSpacing(0);
+
+    m_ribbonBar = new AnnotationRibbonBar(rightCol);
+    m_ribbonBar->hide(); // hidden until PDF is loaded
+
+    rightVBox->addWidget(m_ribbonBar);
+    rightVBox->addWidget(m_pdfView, 1);
+
+    // Add toolbar and right column to the main window layout
     hbox->addWidget(m_toolBar);
-    hbox->addWidget(m_pdfView, 1);
+    hbox->addWidget(rightCol, 1);
     setCentralWidget(central);
 
     // Transparent overlay sits on top of the PDF viewport; receives the scroll
@@ -180,6 +196,7 @@ void MainWindow::openFile()
 
     m_saveAction->setEnabled(true);
     m_toolBar->show();
+    m_ribbonBar->show();
     m_overlay->show();
     m_overlay->resize(m_pdfView->viewport()->size());
 }

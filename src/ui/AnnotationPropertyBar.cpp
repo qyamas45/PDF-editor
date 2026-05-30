@@ -147,7 +147,7 @@ void AnnotationPropertyBar::buildDrawPanel()
              to notify changes in text properties. Finally, it sets a fixed 
              height for the property bar to accommodate the added controls.
 */
-void AnnotationPropertyBar::buildTextPanel()
+    void AnnotationPropertyBar::buildTextPanel()
 {
     m_layout->addWidget(makeLabel("Text", true));
 
@@ -182,6 +182,14 @@ void AnnotationPropertyBar::buildTextPanel()
     struct SizeOpt { QString label; int value; };
     const QList<SizeOpt> sizes = { {"S", 12}, {"M", 16}, {"L", 24} };
 
+    QSpinBox *sizeSpin = new QSpinBox;
+    sizeSpin->setRange(8, 72);
+    sizeSpin->setValue(12);
+    sizeSpin->setSuffix(" pt");
+    connect(sizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
+        emit fontSizeChanged(v);
+    });
+
     QWidget *sizeRow = new QWidget;
     QHBoxLayout *sizeHBox = new QHBoxLayout(sizeRow);
     sizeHBox->setContentsMargins(0, 0, 0, 0);
@@ -197,20 +205,12 @@ void AnnotationPropertyBar::buildTextPanel()
             "}"
             "QPushButton:hover { background: #C8D8F0; border-color: #4A90E2; }"
         );
-        connect(btn, &QPushButton::clicked, this, [this, sz = opt.value]() {
-            emit fontSizeChanged(sz);
+        connect(btn, &QPushButton::clicked, this, [sizeSpin, sz = opt.value]() {
+            sizeSpin->setValue(sz);
         });
         sizeHBox->addWidget(btn);
     }
 
-    // Add a spin box for custom font size
-    QSpinBox *sizeSpin = new QSpinBox;
-    sizeSpin->setRange(8, 72);
-    sizeSpin->setValue(8);
-    sizeSpin->setSuffix(" pt");
-    connect(sizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
-        emit fontSizeChanged(v);
-    });
     sizeHBox->addWidget(sizeSpin);
 
     sizeHBox->addStretch();

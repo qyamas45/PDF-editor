@@ -76,8 +76,10 @@ void MainWindow::setupUI()
         QPoint toolbarLocal(m_toolBar->buttonX(type)+50, m_toolBar->buttonY(type));
         QPoint viewportPos = m_pdfView->viewport()->mapFromGlobal(
             m_toolBar->mapToGlobal(toolbarLocal));
-        //qDebug() << "propBar move to:" << viewportPos;
-        m_propBar->move(viewportPos);
+        int clampedY = qBound(0,
+                              viewportPos.y(),
+                              m_pdfView->viewport()->height() - m_propBar->height());
+        m_propBar->move(viewportPos.x(), clampedY);
         m_propBar->raise();
         m_propBar->show();
         //qDebug() << "propBar visible:" << m_propBar->isVisible() << "geom:" << m_propBar->geometry();

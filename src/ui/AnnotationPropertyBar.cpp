@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
+#include <iostream>
 /*
     Function name: AnnotationPropertyBar
     Purpose: Constructor for the AnnotationPropertyBar class.
@@ -257,16 +258,25 @@ void AnnotationPropertyBar::buildErasePanel()
              If an unrecognized tool type is provided, it simply sets a default height 
              for the property bar without adding any controls.
 */
-void AnnotationPropertyBar::setTool(ToolType type)
+void AnnotationPropertyBar::setTool(ToolType types)
 {
     clearPanel();
-
-    if (type == ToolType::Draw)
-        buildDrawPanel();
-    else if (type == ToolType::Text)
-        buildTextPanel();
-    else if (type == ToolType::Erase)
-        buildErasePanel();
-    else
-        setFixedHeight(40);
+    switch (types) {
+        case ToolType::Select:
+            hide();
+            break;
+        case ToolType::Draw:
+            buildDrawPanel();
+            break;
+        case ToolType::Text:
+            buildTextPanel();
+            break;
+        case ToolType::Erase:
+            buildErasePanel();
+            break;
+        default:
+            setFixedHeight(40);
+            break;
+    }
 }
+   

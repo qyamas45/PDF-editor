@@ -67,11 +67,11 @@ void AnnotationToolBar::setTools(const QVector<ToolItem> &tools)
         //if certain buttons, then an actual tooltip 
         //with instructions on how to use the tool 
         //(e.g. "Click and drag to draw annotation")
-        if (item.type == ToolType::Draw || item.type == ToolType::Erase)
-        {
-            btn->setAttribute(Qt::WA_Hover);
-            btn->installEventFilter(this);
-        }
+        //if (item.type == ToolType::Draw || item.type == ToolType::Erase)
+        //{
+        //    btn->setAttribute(Qt::WA_Hover);
+        //    btn->installEventFilter(this);
+        //}
         m_layout->addWidget(btn);
         m_buttons.append(btn);
     }

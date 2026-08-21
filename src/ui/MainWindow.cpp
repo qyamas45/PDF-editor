@@ -3,28 +3,80 @@
 #include "AnnotationOverlay.h"
 #include "AnnotationPropertyBar.h"
 #include "AnnotationRibbonBar.h"
-#include <QFileDialog>
-#include <QFileInfo>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QMenuBar>
-#include <QMessageBox>
-#include <QPainter>
-#include <QPdfDocument>
-#include <QPdfView>
-#include <QPdfWriter>
-#include <QPageSize>
-#include <QTransform>
-#include <QWidget>
 
+ 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_document(new QPdfDocument(this))
     , m_pdfView(new QPdfView(this))
 {
-    setupUI();
-    setupMenuBar();
+   
+   setupUI();
+   setupMenuBar();
+
 }
+ 
+MainWindow::~MainWindow() {
+    // Ensure the file watcher is cleaned up properly
+    if (m_fileWatcher) {
+        m_fileWatcher->deleteLater();
+        m_fileWatcher = nullptr;
+    }
+    trayIcon->hide(); 
+}
+void MainWindow::closeEvent(QCloseEvent *event) {
+    // Hide the tray icon immediately so it doesn't leave a ghost icon on the taskbar
+    trayIcon->hide(); 
+    
+    // Accept the close event normally, which shuts down the Qt event loop
+    event->accept(); 
+}
+void MainWindow::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason) {
+    // Check for either a single click (Trigger) or a double click
+    if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
+        
+        // ONLY bring the window up. Never hide or close it from here.
+        if (this->isMinimized()) {
+            this->showNormal(); // Unminimize if it was minimized to the taskbar
+        }
+        
+        this->show();           // Make sure it is visible
+        this->raise();          // Bring it on top of other desktop apps
+        this->activateWindow(); // Give it keyboard/mouse focus
+    }
+}
+
+void MainWindow::forceQuitApplication() {
+    this->close(); // Triggers the simplified closeEvent above
+    qApp->quit();  // Hard kills the app loop in main.cpp
+}
+
+bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
+#ifdef Q_OS_WIN
+    MSG *msg = static_cast<MSG *>(message);
+    
+    if (msg->message == 0x00A3 && msg->wParam == 3) {
+        *result = 0;
+        return true; // Swallows the double-click completely
+    }
+
+    // Catch when Windows tries to open or trigger the top-left system menu (shown in your image)
+    if (msg->message == WM_SYSCOMMAND) {
+        int command = msg->wParam & 0xFFF0;
+        
+        // SC_KEYMENU or double-click triggers on the system icon area
+        if (command == SC_CLOSE) {
+            // If it comes from a mouse action on the top-left icon (lParam is 0 or 3)
+            if (msg->lParam == 0 || msg->lParam == 3) {
+                *result = 0;
+                return true; // Block the menu from opening and closing the app!
+            }
+        }
+    }
+#endif
+    return QMainWindow::nativeEvent(eventType, message, result);
+}
+
 /*
     Function name: buildDrawPanel
     Purpose: Configures the property bar with controls for the Draw tool.
@@ -37,6 +89,14 @@ void MainWindow::setupUI()
 {
     setWindowTitle("PDF Editor");
     resize(900, 700);
+    trayMenu = new QMenu(this);
+    trayIcon = new QSystemTrayIcon(this);
+    trayIcon->setIcon(QIcon(":/icons/tray_icon.png"));
+    trayMenu->addAction("Quit", this, &MainWindow::forceQuitApplication);
+    trayIcon->setContextMenu(trayMenu);
+    connect(trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::onTrayIconActivated);
+    trayIcon->show();
+
 
     m_pdfView->setDocument(m_document);
     m_pdfView->setPageMode(QPdfView::PageMode::MultiPage);
@@ -95,10 +155,10 @@ void MainWindow::setupUI()
     rightVBox->setContentsMargins(0, 0, 0, 0);
     rightVBox->setSpacing(0);
 
-    m_ribbonBar = new AnnotationRibbonBar(rightCol);
-    m_ribbonBar->hide(); // hidden until PDF is loaded
+    //m_ribbonBar = new AnnotationRibbonBar(rightCol);
+    //m_ribbonBar->hide(); // hidden until PDF is loaded
 
-    rightVBox->addWidget(m_ribbonBar);
+    //rightVBox->addWidget(m_ribbonBar);
     rightVBox->addWidget(m_pdfView, 1);
 
     // Add toolbar and right column to the main window layout
@@ -114,6 +174,10 @@ void MainWindow::setupUI()
     connect(m_toolBar, &AnnotationToolBar::toolSelected,
             m_overlay,  &AnnotationOverlay::setActiveTool);
 
+    // Any edit to the annotations makes the document dirty, which enables Save
+    connect(m_overlay, &AnnotationOverlay::annotationsChanged,
+            this,      [this]() { setSavedState(false); });
+
     // Forward property changes from the property bar to the overlay
     connect(m_propBar, &AnnotationPropertyBar::strokeColorChanged,
             m_overlay, &AnnotationOverlay::setStrokeColor);
@@ -126,6 +190,35 @@ void MainWindow::setupUI()
     connect(m_propBar, &AnnotationPropertyBar::eraserRadiusChanged,
             m_overlay, &AnnotationOverlay::setEraserRadius);
 }
+/*
+    Function name: setSavedState
+    Purpose: Central switch for the "document has unsaved changes" state.
+    Details: Keeps the isSaved flag, the enabled state of File > Save and the
+             window title marker consistent. Save stays disabled while the
+             document matches the file on disk (and when nothing is open).
+*/
+void MainWindow::setSavedState(bool saved)
+{
+    isSaved = saved;
+    if (m_saveAction)
+        m_saveAction->setEnabled(!saved && !m_currentPath.isEmpty());
+    updateWindowTitle();
+}
+
+/*
+    Function name: updateWindowTitle
+    Purpose: Shows the open file name plus a "*" marker while changes are pending.
+*/
+void MainWindow::updateWindowTitle()
+{
+    if (m_currentPath.isEmpty()) {
+        setWindowTitle("PDF Editor");
+        return;
+    }
+    setWindowTitle("PDF Editor — " + QFileInfo(m_currentPath).fileName()
+                   + (isSaved ? "" : " *"));
+}
+
 /*
     Function name: setupMenuBar
     Purpose: Sets up the main window's menu bar with file operations.
@@ -140,15 +233,23 @@ void MainWindow::setupMenuBar()
     openAction->setShortcut(QKeySequence::Open);  // Ctrl+O
     connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
 
-    QAction *saveAction = fileMenu->addAction("&Save as PDF...");
-    saveAction->setShortcut(QKeySequence::Save);  // Ctrl+S
+    QAction *saveAction = fileMenu->addAction("Save");
+    saveAction->setShortcut(QKeySequence::SaveAs);  // Ctrl+S
     saveAction->setEnabled(false);
-    connect(saveAction, &QAction::triggered, this, &MainWindow::savePdf);
+    connect(saveAction, &QAction::triggered, this, &MainWindow::overWritePdf);
     m_saveAction = saveAction;
+    
+    QAction *saveAsAction = fileMenu->addAction("&Save as PDF...");
+    saveAsAction->setShortcut(QKeySequence::Save);  // Ctrl+Shift+S
+    saveAsAction->setEnabled(false);
+    connect(saveAsAction, &QAction::triggered, this, &MainWindow::savePdf);
+    m_saveAsAction = saveAsAction;
 
     QAction *quitAction = fileMenu->addAction("&Quit");
     quitAction->setShortcut(QKeySequence::Quit);  // Ctrl+Q
-    connect(quitAction, &QAction::triggered, this, &QWidget::close);
+    
+    // CHANGE THIS LINE: Route directly to forceQuitApplication
+    connect(quitAction, &QAction::triggered, this, &MainWindow::forceQuitApplication);
 }
 /*
     Function name: openFile
@@ -172,15 +273,39 @@ void MainWindow::openFile()
     if (path.isEmpty())
         return;
 
+    // Ask about pending changes while the old document is still loaded —
+    // overWritePdf() renders the current document into m_currentPath, so this
+    // has to happen before either of them is replaced.
+    if (!m_currentPath.isEmpty() && !isSaved) {
+        const QMessageBox::StandardButton reply = QMessageBox::question(
+            this, "Unsaved Changes",
+            "You have unsaved changes in the current document. Do you want to save them before opening a new file?",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+        if (reply == QMessageBox::Cancel)
+            return;
+        if (reply == QMessageBox::Yes)
+            overWritePdf();
+    }
+
     if (m_document->load(path) != QPdfDocument::Error::None) {
         QMessageBox::warning(this, "Error", "Could not open: " + path);
         return;
     }
-
+    //if it does exist, check the file size
+    QFileInfo fi(path);
+    qint64 fileSizeInBytes = fi.size();
+    //if the PDF document is huge, then return
+    //// 200 MB
+    if (fileSizeInBytes > 200 * 1024 * 1024) { 
+        QMessageBox::warning(this, "Error", "The selected PDF file is too large to open.");
+        m_document->close();
+        return;
+    }
     // Stop watching the previous file if any
     if (!m_currentPath.isEmpty() && m_fileWatcher)
         m_fileWatcher->removePath(m_currentPath);
-
+        
     m_currentPath = path;
     // Watch the opened file for external changes to auto-reload
     if (!m_fileWatcher) {
@@ -194,11 +319,14 @@ void MainWindow::openFile()
     }
     m_fileWatcher->addPath(m_currentPath);
 
-    setWindowTitle("PDF Editor — " + QFileInfo(path).fileName());
+    // Annotations belong to the previous document — drop them and start clean,
+    // so Save stays disabled until the user actually edits this file.
+    m_overlay->clearAnnotations();
+    setSavedState(true);
 
-    m_saveAction->setEnabled(true);
+    m_saveAsAction->setEnabled(true);
     m_toolBar->show();
-    m_ribbonBar->show();
+    //m_ribbonBar->show();
     m_overlay->show();
     m_overlay->resize(m_pdfView->viewport()->size());
 }
@@ -240,6 +368,87 @@ void MainWindow::onSourceFileChanged(const QString &path)
           are flattened into the output file, making it viewable in any standard PDF reader without 
           requiring special annotation support.
 */
+
+void MainWindow::overWritePdf()
+{
+    const QString outPath = m_currentPath;
+    if (outPath.isEmpty()) return;
+    const qreal exportDpi   = 150.0;
+    const qreal exportScale = exportDpi / 72.0;
+
+    const QMargins margins = m_pdfView->documentMargins();
+    const int      spacing = m_pdfView->pageSpacing();
+    const qreal viewWidth  = m_pdfView->viewport()->width()
+                             - margins.left() - margins.right();
+    const int pageCount    = m_document->pageCount();
+
+    QVector<qreal> screenScaleV(pageCount), pageTopY(pageCount);
+    qreal docY = margins.top();
+    for (int i{}; i < pageCount; ++i) {
+        const QSizeF sz  = m_document->pagePointSize(i);
+        screenScaleV[i]  = viewWidth / sz.width();
+        pageTopY[i]      = docY;
+        docY            += sz.height() * screenScaleV[i] + spacing;
+    }
+
+    QPdfWriter writer(outPath);
+    writer.setCreator("PDF Editor");
+    QPainter pdfPainter;
+
+    for (int i{}; i < pageCount; ++i) {
+        const QSizeF pageSizePt = m_document->pagePointSize(i);
+        const qreal  ss         = screenScaleV[i];
+        const qreal  pageHPx    = pageSizePt.height() * ss;
+
+        const QSize exportSizePx(qRound(pageSizePt.width()  * exportScale),
+                                 qRound(pageSizePt.height() * exportScale));
+
+        writer.setPageSize(QPageSize(pageSizePt, QPageSize::Point));
+        writer.setPageMargins(QMarginsF(0, 0, 0, 0));
+
+        if (i == 0) pdfPainter.begin(&writer);
+        else        writer.newPage();
+
+        QImage img = m_document->render(i, exportSizePx);
+
+        {
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+
+            QTransform T;
+            T.translate(-margins.left(), -pageTopY[i]);
+            T.scale(exportScale / ss, exportScale / ss);
+
+            p.setBrush(Qt::NoBrush);
+            for (const Stroke &s : m_overlay->strokes()) {
+                const QRectF bb = s.path.boundingRect();
+                if (bb.bottom() < pageTopY[i] || bb.top() > pageTopY[i] + pageHPx)
+                    continue;
+                const qreal penW = qMax(1.0, s.width * exportScale / ss);
+                p.setPen(QPen(s.color, penW, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+                p.drawPath(T.map(s.path));
+            }
+
+            for (const TextAnnotation &ann : m_overlay->textAnnotations()) {
+                if (ann.position.y() < pageTopY[i] || ann.position.y() > pageTopY[i] + pageHPx)
+                    continue;
+                QFont font;
+                font.setFamily("Arial");
+                font.setPixelSize(qRound(ann.fontSize * exportScale / ss));
+                p.setFont(font);
+                p.setPen(ann.color);
+                p.drawText(T.map(ann.position), ann.text);
+            }
+        }
+
+        const QRect pageRect(0, 0,
+                             pdfPainter.device()->width(),
+                             pdfPainter.device()->height());
+        pdfPainter.drawImage(pageRect, img);
+    }
+    pdfPainter.end();
+    setSavedState(true);
+}
 void MainWindow::savePdf()
 {
     if (m_document->pageCount() == 0) return;
@@ -323,6 +532,9 @@ void MainWindow::savePdf()
     }
 
     pdfPainter.end();
+
+    // The annotations now live in outPath, but m_currentPath (the file Save
+    // overwrites) is still untouched, so the document stays dirty.
     QMessageBox::information(this, "Saved",
         "Annotated PDF saved to:\n" + outPath);
 }

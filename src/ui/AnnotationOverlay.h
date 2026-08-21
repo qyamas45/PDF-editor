@@ -49,6 +49,15 @@ public slots:
     const QVector<Stroke>&         strokes()          const { return m_strokes; }
     const QVector<TextAnnotation>& textAnnotations()   const { return m_textAnnotations; }
 
+    // Drop every annotation without emitting annotationsChanged(); used when a
+    // new document is loaded and the dirty state is being reset anyway.
+    void clearAnnotations();
+
+signals:
+    // Emitted whenever the stored annotations are added to, removed, or moved.
+    // MainWindow uses this to drive the enabled state of File > Save.
+    void annotationsChanged();
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -75,14 +84,15 @@ private:
 
     SelectedItem             m_selection;
     QPointF                  m_dragLastPos;
-    bool                     m_dragging = false;
+    bool                     m_dragging  = false;
+    bool                     m_dragMoved = false;   // true once a drag actually shifted an item
 
     QPointF        scrollOffset() const;
     void           commitTextInput();
     void           updateMousePassthrough();
     SelectedItem   hitTestAt(QPointF pos) const;
     QRectF         selectionRect() const;
-    void           eraseFragmentAt(QPointF center, qreal radius);
+    bool           eraseFragmentAt(QPointF center, qreal radius);
     
     QColor m_strokeColor  = QColor(220, 50, 50, 200);
     qreal  m_strokeWidth  = 2.5;

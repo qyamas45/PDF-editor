@@ -133,6 +133,7 @@ void AnnotationOverlay::mousePressEvent(QMouseEvent *event)
     if (m_activeTool == ToolType::Select) {
         m_selection   = hitTestAt(docPos);
         m_dragging    = m_selection.kind != SelectionKind::None;
+        m_dragMoved   = false;
         m_dragLastPos = docPos;
         if (m_selection.kind != SelectionKind::None)
             setFocus();
@@ -148,7 +149,7 @@ void AnnotationOverlay::mousePressEvent(QMouseEvent *event)
         
     } else if (m_activeTool == ToolType::Erase) {
         m_erasing = true;
-        eraseFragmentAt(docPos, m_eraserRadius);
+        bool changed = eraseFragmentAt(docPos, m_eraserRadius);
         // text has no geometry to fragment — erase whole on press only
         for (int i = m_textAnnotations.size() - 1; i >= 0; --i) {
             const TextAnnotation &ann = m_textAnnotations[i];
@@ -160,9 +161,12 @@ void AnnotationOverlay::mousePressEvent(QMouseEvent *event)
                         fm.horizontalAdvance(ann.text) + 6, fm.height() + 4);
             if (rect.contains(docPos)) {
                 m_textAnnotations.removeAt(i);
+                changed = true;
                 break;
             }
         }
+        if (changed)
+            emit annotationsChanged();
         update();
         return;
 
@@ -197,6 +201,7 @@ void AnnotationOverlay::mousePressEvent(QMouseEvent *event)
             if (!m_textInput->text().isEmpty()) {
                 QPointF textPos(docPos.x() + 3, docPos.y() + 18);
                 m_textAnnotations.append({ textPos, m_textInput->text(), activeTextColor, activeFontSize });
+                emit annotationsChanged();
             }
             m_textInput->hide();
             m_textInput->deleteLater();
@@ -215,17 +220,22 @@ void AnnotationOverlay::mouseMoveEvent(QMouseEvent *event)
         QPointF delta  = docPos - m_dragLastPos;
         m_dragLastPos  = docPos;
 
-        for(QPointF &p : m_strokes[m_selection.index].points)
-            p += delta;
+        if (delta.isNull())
+            return;
+        m_dragMoved = true;
 
-        if (m_selection.kind == SelectionKind::Stroke)
+        if (m_selection.kind == SelectionKind::Stroke) {
+            for (QPointF &p : m_strokes[m_selection.index].points)
+                p += delta;
             m_strokes[m_selection.index].path.translate(delta.x(), delta.y());
-        else if (m_selection.kind == SelectionKind::Text)
+        } else if (m_selection.kind == SelectionKind::Text) {
             m_textAnnotations[m_selection.index].position += delta;
+        }
 
         update();
     } else if (m_activeTool == ToolType::Erase && m_erasing) {
-        eraseFragmentAt(docPos, m_eraserRadius);
+        if (eraseFragmentAt(docPos, m_eraserRadius))
+            emit annotationsChanged();
         update();
     } else if (m_activeTool == ToolType::Draw && m_drawing) {
         // Capture previous point before appending, so we can compute the dirty segment
@@ -249,7 +259,10 @@ void AnnotationOverlay::mouseReleaseEvent(QMouseEvent *event)
         return;
 
     if (m_activeTool == ToolType::Select) {
-        m_dragging = false;
+        if (m_dragging && m_dragMoved)
+            emit annotationsChanged();
+        m_dragging  = false;
+        m_dragMoved = false;
         return;
     }
 
@@ -266,6 +279,7 @@ void AnnotationOverlay::mouseReleaseEvent(QMouseEvent *event)
         m_currentStroke = QPainterPath();
         m_currentPoints.clear();
         m_drawing = false;
+        emit annotationsChanged();
         update();
     }
 }
@@ -288,10 +302,30 @@ void AnnotationOverlay::keyPressEvent(QKeyEvent *event)
             m_textAnnotations.removeAt(m_selection.index);
 
         m_selection = {};
+        emit annotationsChanged();
         update();
         return;
     }
     QWidget::keyPressEvent(event);
+}
+
+void AnnotationOverlay::clearAnnotations()
+{
+    if (m_textInput) {
+        m_textInput->hide();
+        m_textInput->deleteLater();
+        m_textInput = nullptr;
+    }
+    m_strokes.clear();
+    m_textAnnotations.clear();
+    m_currentStroke = QPainterPath();
+    m_currentPoints.clear();
+    m_selection  = {};
+    m_drawing    = false;
+    m_erasing    = false;
+    m_dragging   = false;
+    m_dragMoved  = false;
+    update();
 }
 
 void AnnotationOverlay::commitTextInput()
@@ -302,8 +336,10 @@ void AnnotationOverlay::commitTextInput()
     QPointF off = scrollOffset();
     QPointF pos(m_textInput->pos().x() + 3  + off.x(),
                 m_textInput->pos().y() + 18 + off.y());
-    if (!m_textInput->text().isEmpty())
+    if (!m_textInput->text().isEmpty()) {
         m_textAnnotations.append({ pos, m_textInput->text(), m_textColor, m_fontSize });
+        emit annotationsChanged();
+    }
     m_textInput->hide();
     m_textInput->deleteLater();
     m_textInput = nullptr;
@@ -338,9 +374,11 @@ SelectedItem AnnotationOverlay::hitTestAt(QPointF pos) const
     return {};
 }
 
-void AnnotationOverlay::eraseFragmentAt(QPointF center, qreal radius)
+// Returns true if any stroke was modified, so callers can report a change.
+bool AnnotationOverlay::eraseFragmentAt(QPointF center, qreal radius)
 {
     const qreal r2 = radius * radius;
+    bool changed = false;
 
     for (int i = m_strokes.size() - 1; i >= 0; --i) {
         // Quick bounding-box rejection before checking individual points
@@ -395,8 +433,11 @@ void AnnotationOverlay::eraseFragmentAt(QPointF center, qreal radius)
         m_strokes.removeAt(i);
         for (int k = 0; k < replacements.size(); ++k)
             m_strokes.insert(i + k, replacements[k]);
+        changed = true;
         // Indices below i are unaffected; the for loop --i steps past inserted entries correctly
     }
+
+    return changed;
 }
 
 void AnnotationOverlay::setEraserRadius(qreal radius) { m_eraserRadius = radius; }

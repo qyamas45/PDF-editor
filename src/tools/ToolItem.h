@@ -2,7 +2,7 @@
 #include <QIcon>
 #include <QString>
 
-enum class ToolType { None, Select, Draw, Text, Erase };
+enum class ToolType { None, Select, Draw, Text, Erase, Shape };
 
 struct ToolItem {
     ToolType type;

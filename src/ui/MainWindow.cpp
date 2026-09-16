@@ -117,6 +117,7 @@ void MainWindow::setupUI()
         { ToolType::Draw,   "Draw",   AnnotationToolBar::makeDrawIcon()   },
         { ToolType::Text,   "Text",   AnnotationToolBar::makeTextIcon()   },
         { ToolType::Erase,  "Erase",  AnnotationToolBar::makeEraseIcon()  },
+        { ToolType::Shape,  "Shape",  AnnotationToolBar::makeShapeIcon()  }
     };
     // Set the tools on the toolbar and hide it until a PDF is loaded
     m_toolBar->setTools(tools);

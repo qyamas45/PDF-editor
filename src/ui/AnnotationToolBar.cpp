@@ -322,3 +322,18 @@ QIcon AnnotationToolBar::makeEraseIcon()
     p.end();
     return QIcon(pm);
 }
+QIcon AnnotationToolBar::makeShapeIcon()
+{
+    QPixmap pm(32, 32);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    // Draw a simple rectangle shape
+    p.setPen(QPen(QColor("#2C3E50"), 2));
+    p.setBrush(QColor("#3498DB"));
+    p.drawRect(8, 8, 16, 16);
+
+    p.end();
+    return QIcon(pm);
+}

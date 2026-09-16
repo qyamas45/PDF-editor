@@ -25,6 +25,7 @@ public:
     static QIcon makeDrawIcon();
     static QIcon makeTextIcon();
     static QIcon makeEraseIcon();
+    static QIcon makeShapeIcon();
 
 signals:
     void toolSelected(ToolType type);

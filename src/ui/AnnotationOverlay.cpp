@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QFont>
 #include <QFontMetricsF>
+#include <iostream>
 
 AnnotationOverlay::AnnotationOverlay(QAbstractScrollArea *scrollArea)
     : QWidget(scrollArea->viewport())
@@ -80,7 +81,12 @@ void AnnotationOverlay::paintEvent(QPaintEvent *)
         p.setPen(QPen(m_strokeColor, m_strokeWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         p.drawPath(m_currentStroke);
     }
-
+    // In-progress shape uses the current active settings
+    if (m_shaping) {
+        p.setPen(QPen(m_strokeColor, m_strokeWidth, Qt::DashLine));
+        p.setBrush(QColor(0, 0, 255, 30));
+        p.drawRect(m_currentStrokeRect);
+    }
     // Text annotations — skip off-screen ones; cache the QFont when size repeats
     int lastFontSize = -1;
     const QRectF textVisRect = visibleRect.adjusted(0, -40, 0, 10); // extra margin for ascenders
@@ -146,7 +152,14 @@ void AnnotationOverlay::mousePressEvent(QMouseEvent *event)
         m_currentStroke.moveTo(docPos);
         m_currentPoints.clear();
         m_currentPoints.append(docPos);
-        
+    } else if (m_activeTool == ToolType::Shape) {
+        // Placeholder for future shape tool implementation
+        m_shaping = true;
+        m_startPoint = docPos.toPoint();
+        m_currentStrokeRect = QRect(m_startPoint, m_startPoint);
+
+
+    
     } else if (m_activeTool == ToolType::Erase) {
         m_erasing = true;
         bool changed = eraseFragmentAt(docPos, m_eraserRadius);
@@ -251,6 +264,10 @@ void AnnotationOverlay::mouseMoveEvent(QMouseEvent *event)
                                  .adjusted(-margin, -margin, margin, margin);
         update(dirty.toAlignedRect());
     }
+    else if(m_activeTool == ToolType::Shape && m_shaping) {
+        m_currentStrokeRect = QRect(m_startPoint, docPos.toPoint()).normalized();
+        update();
+    }
 }
 
 void AnnotationOverlay::mouseReleaseEvent(QMouseEvent *event)
@@ -279,6 +296,31 @@ void AnnotationOverlay::mouseReleaseEvent(QMouseEvent *event)
         m_currentStroke = QPainterPath();
         m_currentPoints.clear();
         m_drawing = false;
+        emit annotationsChanged();
+        update();
+    }
+    if (m_activeTool == ToolType::Shape && m_shaping) {
+
+        //QPointF docPos = event->position() + scrollOffset();
+        //m_currentStroke.lineTo(docPos);
+        //m_currentPoints.append(docPos);
+        //// For now, treat shapes as strokes; in the future, we might have a separate ShapeAnnotation type
+        //m_strokes.append({ m_currentStroke, m_currentPoints, m_strokeColor, m_strokeWidth });
+        //m_currentStroke = QPainterPath();
+        //m_currentPoints.clear();
+        //m_shaping = false;
+        //emit annotationsChanged();
+        //update();
+        QPointF docPos = event->position() + scrollOffset();
+        m_currentStrokeRect = QRect(m_startPoint, docPos.toPoint()).normalized();
+        // For now, treat shapes as strokes; in the future, we might have a separate
+        // ShapeAnnotation type. Here, we create a rectangle path based on the current stroke rect.
+        QPainterPath shapePath;
+        shapePath.addRect(m_currentStrokeRect);
+        QVector<QPointF> shapePoints = { m_currentStrokeRect.topLeft(), m_currentStrokeRect.bottomRight() }; // Simplified representation
+        m_strokes.append({ shapePath, shapePoints, m_strokeColor, m_strokeWidth });
+        m_currentStrokeRect = QRect();
+        m_shaping = false;
         emit annotationsChanged();
         update();
     }

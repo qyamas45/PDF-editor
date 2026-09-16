@@ -70,12 +70,15 @@ private:
     ToolType                 m_activeTool = ToolType::None;
 
     QPainterPath             m_currentStroke;
+    QRect                    m_currentStrokeRect;
+    QPoint                   m_startPoint;
     QVector<Stroke>          m_strokes;
     QVector<QPointF>         m_currentPoints;
     QVector<bool>            m_eraseClassifyBuf;   // reused across eraseFragmentAt calls
     qreal                    m_eraserRadius = 8.0;
     bool                     m_drawing  = false;
     bool                     m_erasing  = false;
+    bool                     m_shaping = false;
 
     QVector<TextAnnotation>  m_textAnnotations;
     QLineEdit               *m_textInput = nullptr;
